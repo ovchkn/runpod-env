@@ -1,7 +1,6 @@
 # Start with PyTorch CUDA base image
 FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
 
-# Labels for metadata and runtime configuration
 LABEL org.opencontainers.image.source="https://github.com/ovchkn/runpod-env"
 LABEL org.opencontainers.image.description="ML/AI Development Environment with Sysbox Runtime for RunPod"
 LABEL org.opencontainers.image.licenses="MIT"
@@ -29,12 +28,6 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Sysbox repository and install
-RUN curl -fsSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_22.04/Release.key | gpg --dearmor -o /etc/apt/keyrings/devel_kubic_libcontainers_stable.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/devel_kubic_libcontainers_stable.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_22.04/ /" | tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list && \
-    curl -fsSL https://raw.githubusercontent.com/nestybox/sysbox/master/sysbox-packages/ubuntu/focal/sysbox.list | tee /etc/apt/sources.list.d/sysbox.list && \
-    curl -fsSL https://raw.githubusercontent.com/nestybox/sysbox/master/sysbox-packages/ubuntu/focal/sysbox-archive-keyring.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/sysbox-archive-keyring.gpg
-
 # Add Docker repository
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
@@ -51,7 +44,6 @@ RUN apt-get update && apt-get install -y \
     udev \
     init \
     sudo \
-    sysbox-runc \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
@@ -74,13 +66,22 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker and Kubernetes with sysbox-runc
+# Install Docker and Kubernetes
 RUN apt-get update && apt-get install -y \
     docker-ce \
     docker-ce-cli \
     containerd.io \
     kubectl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install sysbox-runc from GitHub release
+RUN mkdir -p /tmp/sysbox && \
+    cd /tmp/sysbox && \
+    wget https://github.com/nestybox/sysbox/releases/download/v0.6.2/sysbox_0.6.2-0.linux_amd64.deb && \
+    apt-get update && \
+    apt-get install -y ./sysbox_0.6.2-0.linux_amd64.deb && \
+    rm -rf /tmp/sysbox && \
+    rm -rf /var/lib/apt/lists/*
 
 # Configure Docker to use sysbox-runc by default
 RUN mkdir -p /etc/docker && \

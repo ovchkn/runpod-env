@@ -8,12 +8,25 @@ VERSION="1.0"
 FULL_IMAGE_NAME="${REGISTRY}/${OWNER}/${IMAGE_NAME}:${VERSION}"
 
 # Source API keys environment variables
-source /home/ubuntu/src/runpod-env/configs/api_keys.env
+if [ -f "/home/ubuntu/src/runpod-env/configs/api_keys.env" ]; then
+    source /home/ubuntu/src/runpod-env/configs/api_keys.env
+fi
 
-# Ensure we're logged into GitHub Container Registry
-if ! docker info | grep -q "ghcr.io"; then
-    echo "Please login to GitHub Container Registry first:"
-    echo "echo \$GITHUB_TOKEN | docker login ghcr.io -u ${OWNER} --password-stdin"
+# Check for GitHub token
+if [ -z "${GITHUB_TOKEN}" ]; then
+    echo "Error: GITHUB_TOKEN environment variable is not set"
+    echo "Please set your GitHub Personal Access Token:"
+    echo "export GITHUB_TOKEN=your_token_here"
+    exit 1
+fi
+
+# Attempt to log in to GitHub Container Registry
+echo "Logging in to GitHub Container Registry..."
+echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${OWNER}" --password-stdin
+
+# Check if login was successful
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to authenticate with GitHub Container Registry"
     exit 1
 fi
 
@@ -21,9 +34,21 @@ fi
 echo "Building image: ${FULL_IMAGE_NAME}"
 docker build -t ${FULL_IMAGE_NAME} .
 
+# Check if build was successful
+if [ $? -ne 0 ]; then
+    echo "Error: Docker build failed"
+    exit 1
+fi
+
 # Push to registry
 echo "Pushing image to registry..."
 docker push ${FULL_IMAGE_NAME}
+
+# Check if push was successful
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to push image to registry"
+    exit 1
+fi
 
 echo "Deployment complete! Image is available at: ${FULL_IMAGE_NAME}"
 echo ""
