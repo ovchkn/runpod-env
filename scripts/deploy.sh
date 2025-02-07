@@ -7,11 +7,13 @@ IMAGE_NAME="runpod"
 VERSION="1.0"
 FULL_IMAGE_NAME="${REGISTRY}/${OWNER}/${IMAGE_NAME}:${VERSION}"
 
+# Source API keys environment variables
+source ../configs/api_keys.env
+
 # Ensure we're logged into GitHub Container Registry
 if ! docker info | grep -q "ghcr.io"; then
     echo "Please login to GitHub Container Registry first:"
-    echo "export CR_PAT=YOUR_GITHUB_PAT"
-    echo "echo \$CR_PAT | docker login ghcr.io -u ${OWNER} --password-stdin"
+    echo "echo \$GITHUB_TOKEN | docker login ghcr.io -u ${OWNER} --password-stdin"
     exit 1
 fi
 
