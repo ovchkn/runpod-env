@@ -1,0 +1,18 @@
+[Unit]
+Description=MLflow Tracking Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment="MLFLOW_TRACKING_URI=http://localhost:5000"
+ExecStart=/opt/conda/envs/mlops/bin/mlflow server \
+    --host 0.0.0.0 \
+    --port 5000 \
+    --backend-store-uri /workspace/services/mlflow/mlruns \
+    --default-artifact-root /workspace/services/mlflow/artifacts
+WorkingDirectory=/workspace/services/mlflow
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

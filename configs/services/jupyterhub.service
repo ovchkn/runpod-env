@@ -1,0 +1,16 @@
+[Unit]
+Description=JupyterHub
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment="JUPYTER_PATH=/workspace/notebooks"
+Environment="JUPYTER_RUNTIME_DIR=/workspace/services/jupyterhub/runtime"
+Environment="JUPYTER_DATA_DIR=/workspace/services/jupyterhub/data"
+ExecStart=/opt/conda/envs/mlops/bin/jupyterhub -f /workspace/configs/jupyterhub_config.py
+WorkingDirectory=/workspace/services/jupyterhub
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
