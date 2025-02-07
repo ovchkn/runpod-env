@@ -77,9 +77,9 @@ RUN apt-get update && apt-get install -y \
 # Install sysbox-runc from GitHub release
 RUN mkdir -p /tmp/sysbox && \
     cd /tmp/sysbox && \
-    wget https://github.com/nestybox/sysbox/releases/download/v0.6.2/sysbox_0.6.2-0.linux_amd64.deb && \
+    wget https://downloads.nestybox.com/sysbox/releases/v0.6.2/sysbox-ce_0.6.2-0.linux_amd64.deb && \
     apt-get update && \
-    apt-get install -y ./sysbox_0.6.2-0.linux_amd64.deb && \
+    apt-get install -y ./sysbox-ce_0.6.2-0.linux_amd64.deb && \
     rm -rf /tmp/sysbox && \
     rm -rf /var/lib/apt/lists/*
 
