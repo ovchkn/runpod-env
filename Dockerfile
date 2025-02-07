@@ -98,11 +98,6 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/basic.target.wants/* && \
     rm -f /lib/systemd/system/anaconda.target.wants/
 
-# Install Anaconda
-RUN wget https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh -O /tmp/anaconda.sh && \
-    bash /tmp/anaconda.sh -b -p /opt/conda && \
-    rm /tmp/anaconda.sh
-
 # Set up conda environment
 ENV PATH=/opt/conda/bin:$PATH
 RUN conda update -n base -c defaults conda && \
