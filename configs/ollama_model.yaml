@@ -24,11 +24,13 @@ PARAMETER num_ctx 8192
 PARAMETER num_thread 8
 
 # Response template
-TEMPLATE """
-{{- if .System }}
-{{.System}}
-{{- end }}
+TEMPLATE """{{.System}}
 
-{{- if .Prompt }}
 Current conversation:
-{{.Prompt}}
+{{if .First}}User: {{.Prompt}}
+Assistant: Let me help you with that.{{else}}User: {{.Prompt}}
+Assistant: {{end}}"""
+
+# Additional configuration
+PARAMETER stop "User:"
+PARAMETER stop "Assistant:"
