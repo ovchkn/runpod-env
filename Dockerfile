@@ -117,7 +117,7 @@ RUN /opt/conda/envs/mlops/bin/pip install --no-cache-dir \
     langfuse \
     huggingface_hub \
     mlflow \
-    kubeflow-pipelines \
+    kfp \
     jupyterhub \
     jupyterlab \
     wandb \
