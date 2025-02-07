@@ -4,6 +4,8 @@ FROM ubuntu:noble
 LABEL org.opencontainers.image.source="https://github.com/ovchkn/runpod-env"
 LABEL org.opencontainers.image.description="Comprehensive ML/AI Development Environment for RunPod"
 LABEL org.opencontainers.image.licenses="MIT"
+LABEL maintainer="ovchkn"
+LABEL version="1.0"
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -30,6 +32,8 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgl1-mesa-glx \
+    kubectl \
+    docker.io \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure systemd
@@ -43,15 +47,19 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/basic.target.wants/* && \
     rm -f /lib/systemd/system/anaconda.target.wants/*
 
+# Create workspace structure first
+RUN mkdir -p /workspace/{models,data,experiments,logs,notebooks,scripts,configs} && \
+    mkdir -p /workspace/mlflow/{artifacts,runs,metrics} && \
+    mkdir -p /workspace/kubeflow/{pipelines,components,artifacts} && \
+    chmod -R 777 /workspace
+
 # Install Anaconda
 RUN wget https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-x86_64.sh -O /tmp/anaconda.sh && \
     bash /tmp/anaconda.sh -b -p /opt/conda && \
     rm /tmp/anaconda.sh
 
-# Add conda to path
+# Add conda to path and create environment
 ENV PATH="/opt/conda/bin:$PATH"
-
-# Create ML environment with extensive toolset
 RUN conda create -n mlops python=3.11 anaconda -y && \
     conda init bash && \
     echo "conda activate mlops" >> ~/.bashrc
@@ -80,6 +88,7 @@ RUN /bin/bash -c "source activate mlops && \
     diffusers \
     accelerate \
     optimum \
+    huggingface_hub \
     && \
     # ML Tools and Libraries
     conda install -y -c conda-forge \
@@ -92,6 +101,7 @@ RUN /bin/bash -c "source activate mlops && \
     cuml \
     cugraph \
     cusignal \
+    optuna \
     && \
     # Reinforcement Learning
     conda install -y -c conda-forge \
@@ -125,7 +135,6 @@ RUN /bin/bash -c "source activate mlops && \
     # ML Ops
     conda install -y -c conda-forge \
     mlflow \
-    optuna \
     ray-default \
     wandb \
     tensorboard \
@@ -160,27 +169,6 @@ RUN /bin/bash -c "source activate mlops && \
     bitsandbytes \
     vllm \
     einops \
-    && \
-    # Download popular spaCy models
-    python -m spacy download en_core_web_sm && \
-    python -m spacy download en_core_web_md && \
-    # Download NLTK data
-    python -c 'import nltk; nltk.download(\"popular\")'"
-
-# Install Node.js (required for JupyterLab extensions)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g configurable-http-proxy
-
-# Install KubeFlow dependencies
-RUN apt-get update && apt-get install -y \
-    kubectl \
-    docker.io \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install KubeFlow SDK and tools
-RUN /bin/bash -c "source activate mlops && \
-    pip install \
     kfp \
     kfserving \
     kubeflow-training-operator \
@@ -189,61 +177,48 @@ RUN /bin/bash -c "source activate mlops && \
     kubeflow-metadata \
     kubeflow-pytorch-operator \
     kubeflow-tensorflow-operator \
-    && \
-    # Install additional MLflow components
-    pip install \
     mlflow[extras] \
     mlflow-skinny \
     mlflow-dbstore \
     azure-mlflow-skinny \
-    mlflow-flexattr"
+    mlflow-flexattr \
+    && \
+    # Download models and data
+    python -m spacy download en_core_web_sm && \
+    python -m spacy download en_core_web_md && \
+    python -c 'import nltk; nltk.download(\"popular\")'"
 
-# Create MLflow and KubeFlow directories
-RUN mkdir -p /workspace/mlflow/{artifacts,runs,metrics} && \
-    mkdir -p /workspace/kubeflow/{pipelines,components,artifacts} && \
-    chmod -R 777 /workspace/mlflow && \
-    chmod -R 777 /workspace/kubeflow
+# Install Node.js and Ollama
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g configurable-http-proxy && \
+    curl -fsSL https://ollama.com/install.sh | sh
 
-# Add MLflow and KubeFlow configurations
-COPY configs/mlflow.conf /workspace/configs/
-COPY configs/kubeflow.conf /workspace/configs/
-
-# Update environment variables
-ENV MLFLOW_TRACKING_URI=http://localhost:5000 \
-    MLFLOW_ARTIFACT_ROOT=/workspace/mlflow/artifacts \
-    KUBEFLOW_HOST=http://localhost:8000 \
-    KF_PIPELINES_ENDPOINT=http://localhost:8000/pipeline \
-    KFSERVING_ENDPOINT=http://localhost:8000/kfserving
-
-# Update the welcome message to include KubeFlow
-RUN sed -i 's/Run \/workspace\/scripts\/start.sh to initialize services/Run \/workspace\/scripts\/start.sh to initialize services\n\
-- KubeFlow at http:\/\/localhost:8000\n\
-- MLflow UI at http:\/\/localhost:5000\n\
-- KFServing at http:\/\/localhost:8000\/kfserving/g' ~/.bashrc
-
-# Install Ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
-
-# Create workspace structure
-RUN mkdir -p /workspace/{models,data,experiments,logs,notebooks,scripts,configs} && \
-    chmod -R 777 /workspace
+# Create default config files
+RUN echo '[server]\nhost = 0.0.0.0\nport = 5000\nworkers = 4' > /workspace/configs/mlflow.conf && \
+    echo 'apiVersion: v1\nkind: Config\ncurrent-context: kubeflow' > /workspace/configs/kubeflow.conf
 
 # Set up environment variables
 ENV PYTHONPATH=/workspace \
     OLLAMA_HOST=0.0.0.0:11434 \
     MLFLOW_TRACKING_URI=http://localhost:5000 \
+    MLFLOW_ARTIFACT_ROOT=/workspace/mlflow/artifacts \
+    KUBEFLOW_HOST=http://localhost:8000 \
+    KF_PIPELINES_ENDPOINT=http://localhost:8000/pipeline \
+    KFSERVING_ENDPOINT=http://localhost:8000/kfserving \
     CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:$PATH \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-} \
     PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
-# Create a welcome message
+# Create welcome message
 RUN echo 'echo "Welcome to RunPod AI/ML Environment\n\
 - Conda environment: mlops (auto-activated)\n\
 - Full AI/ML/DL/RL Toolset\n\
 - PyTorch + CUDA support\n\
 - TensorFlow + JAX\n\
 - MLflow at http://localhost:5000\n\
+- KubeFlow at http://localhost:8000\n\
 - Jupyter Lab at http://localhost:8888\n\
 - Ollama at http://localhost:11434\n\
 \n\
@@ -254,8 +229,3 @@ ENTRYPOINT ["/lib/systemd/systemd"]
 
 # Expose ports
 EXPOSE 11434 5000 8000 8888 3000 6006
-
-# Label the image
-LABEL maintainer="ovchkn" \
-      version="1.0" \
-      description="Comprehensive AI/ML Development Environment"
