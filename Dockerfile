@@ -1,11 +1,13 @@
 # Start with PyTorch CUDA base image
 FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
 
+# Labels for metadata and runtime configuration
 LABEL org.opencontainers.image.source="https://github.com/ovchkn/runpod-env"
 LABEL org.opencontainers.image.description="ML/AI Development Environment with Sysbox Runtime for RunPod"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="ovchkn"
 LABEL version="1.0"
+LABEL io.runpod.runtime="sysbox-runc"
 
 # Initialize environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -80,9 +82,9 @@ RUN apt-get update && apt-get install -y \
     kubectl \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Docker to use sysbox-runc
+# Configure Docker to use sysbox-runc by default
 RUN mkdir -p /etc/docker && \
-    echo '{\n  "runtimes": {\n    "sysbox-runc": {\n      "path": "/usr/bin/sysbox-runc"\n    }\n  }\n}' > /etc/docker/daemon.json
+    echo '{\n  "default-runtime": "sysbox-runc",\n  "runtimes": {\n    "sysbox-runc": {\n      "path": "/usr/bin/sysbox-runc"\n    }\n  }\n}' > /etc/docker/daemon.json
 
 # Configure systemd
 RUN cd /lib/systemd/system/sysinit.target.wants/ && \
@@ -165,6 +167,7 @@ COPY configs/api_keys.env.template /workspace/configs/
 # Copy scripts
 COPY scripts/start.sh /workspace/scripts/
 COPY scripts/manage_model.sh /workspace/scripts/
+COPY scripts/deploy.sh /workspace/scripts/
 
 # Set proper permissions
 RUN chmod 644 /etc/systemd/system/*.service && \
@@ -188,7 +191,7 @@ RUN echo 'echo "Welcome to RunPod AI/ML Environment\n\
 - LangFuse at http://localhost:3000\n\
 - TensorBoard at http://localhost:6006\n\
 \n\
-Container Runtime: sysbox-runc (Nested Container Support)\n\
+Container Runtime: sysbox-runc (Default)\n\
 Network Storage: ${NETWORK_STORAGE_ROOT}\n\
 External Ollama: http://${EXTERNAL_HOST}:${EXTERNAL_PORT}\n\
 Run /workspace/scripts/start.sh to initialize services\n"' >> ~/.bashrc
