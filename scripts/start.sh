@@ -1,193 +1,98 @@
 #!/bin/bash
 
-# Function to check if a service is running
-check_service() {
-    systemctl is-active --quiet $1
-    return $?
-}
+# Initialize environment
+echo "Initializing RunPod environment..."
 
-# Function to wait for a service to be ready
-wait_for_service() {
-    local service=$1
-    local max_attempts=30
-    local attempt=1
+# Create network storage directories
+NETWORK_ROOT="/network/mlops"
+mkdir -p "${NETWORK_ROOT}/"{datasets,models,experiments,checkpoints,logs}
+mkdir -p "${NETWORK_ROOT}/models/"{fine_tuned,base,checkpoints}
+mkdir -p "${NETWORK_ROOT}/experiments/"{cost,security,performance}
 
-    echo "Waiting for $service to be ready..."
-    while ! check_service $service; do
-        if [ $attempt -ge $max_attempts ]; then
-            echo "Service $service failed to start after $max_attempts attempts"
-            return 1
-        fi
-        echo "Attempt $attempt: $service is not ready yet..."
-        sleep 2
-        attempt=$((attempt + 1))
-    done
-    echo "$service is ready!"
-    return 0
-}
+# Sync code repository to network storage
+REPO_DIR="${NETWORK_ROOT}/code/runpod-env"
+echo "Syncing code repository to network storage..."
+mkdir -p "${REPO_DIR}"
+rsync -av --exclude '.git' /workspace/ "${REPO_DIR}/"
 
-# Function to handle container shutdown
-cleanup() {
-    echo "Container shutdown initiated..."
-    systemctl stop docker
-    systemctl stop ollama
-    systemctl stop mlflow
-    systemctl stop jupyterhub
-    exit 0
-}
+# Create symlinks for workspace
+ln -sf "${NETWORK_ROOT}/datasets" /workspace/datasets
+ln -sf "${NETWORK_ROOT}/models" /workspace/models
+ln -sf "${NETWORK_ROOT}/experiments" /workspace/experiments
+ln -sf "${NETWORK_ROOT}/logs" /workspace/logs
 
-# Set up signal handling
-trap cleanup SIGTERM SIGINT SIGQUIT
-
-# Ensure sysbox-runc is properly initialized
-if [ ! -f "/var/lib/sysbox/kubelet/kubelet.conf" ]; then
-    echo "Initializing sysbox-runc..."
-    mkdir -p /var/lib/sysbox/kubelet
-    touch /var/lib/sysbox/kubelet/kubelet.conf
+# Copy configuration files if not exists
+if [ ! -f /workspace/configs/api_keys.env ]; then
+    cp /workspace/configs/api_keys.env.template /workspace/configs/api_keys.env
+    echo "Please update API keys in /workspace/configs/api_keys.env"
 fi
 
-# Create necessary directories
-mkdir -p /workspace/{notebooks,models,datasets,pipelines,experiments,scripts,configs,logs}
-mkdir -p /workspace/services/{mlflow,kubeflow,langfuse,ollama}
-mkdir -p /workspace/datasets/training
-mkdir -p /workspace/models/fine_tuned
-mkdir -p /workspace/cache/ollama
+# Start monitoring and ML platform services
+echo "Starting monitoring and ML platform services..."
 
-# Set up data pipeline directories
-mkdir -p /workspace/data_pipeline/raw_data
-mkdir -p /workspace/data_pipeline/processed_data
-mkdir -p /workspace/data_pipeline/embeddings
-
-# Set up model training directories
-mkdir -p /workspace/model_training/checkpoints
-mkdir -p /workspace/model_training/logs
-mkdir -p /workspace/model_training/artifacts
-
-# Set up network storage if available
-if [ ! -z "${NETWORK_STORAGE_ROOT}" ]; then
-    echo "Setting up network storage at ${NETWORK_STORAGE_ROOT}..."
-    mkdir -p "${NETWORK_STORAGE_ROOT}/models/ollama"
-    mkdir -p "${NETWORK_STORAGE_ROOT}/models/fine_tuned"
-    
-    # Create symlinks for easier access
-    ln -sf "${NETWORK_STORAGE_ROOT}/models" /workspace/network_models
-fi
-
-# Activate conda environment
-source /opt/conda/etc/profile.d/conda.sh
-conda activate mlops
-
-# Start systemd services
-echo "Starting core services..."
-systemctl start docker
-wait_for_service docker
-
-# Configure Docker runtime for Ollama
-if [ ! -f "/etc/docker/daemon.json" ]; then
-    echo "Configuring Docker runtime..."
-    mkdir -p /etc/docker
-    cat > /etc/docker/daemon.json <<EOF
-{
-    "runtimes": {
-        "sysbox-runc": {
-            "path": "/usr/bin/sysbox-runc"
-        }
-    }
-}
-EOF
-    systemctl restart docker
-    wait_for_service docker
-fi
-
-# Configure external access for Ollama
-if [ ! -z "${EXTERNAL_HOST}" ] && [ ! -z "${EXTERNAL_PORT}" ]; then
-    echo "Configuring external access for Ollama..."
-    /workspace/scripts/manage_model.sh configure-external "${EXTERNAL_HOST}" "${EXTERNAL_PORT}"
-else
-    # Start Ollama service with default configuration
-    echo "Starting Ollama service..."
-    systemctl start ollama
-fi
-
-wait_for_service ollama
-
-# Initialize MLflow
-echo "Starting MLflow service..."
+# Start MLflow
 systemctl start mlflow
-wait_for_service mlflow
+echo "MLflow started on http://localhost:5000"
 
-# Create default MLflow experiments
-mlflow experiments create -n "infrastructure_dataset_creation" 2>/dev/null || true
-mlflow experiments create -n "infrastructure_reasoning_fine_tuning" 2>/dev/null || true
-mlflow experiments create -n "terraform-optimization" 2>/dev/null || true
-mlflow experiments create -n "model-fine-tuning" 2>/dev/null || true
+# Start KubeFlow
+systemctl start kubeflow
+echo "KubeFlow started on http://localhost:8000"
+
+# Start LangFuse
+systemctl start langfuse
+echo "LangFuse started on http://localhost:3000"
 
 # Start JupyterHub
-echo "Starting JupyterHub..."
 systemctl start jupyterhub
-wait_for_service jupyterhub
+echo "JupyterHub started on http://localhost:8888"
 
-# Start TensorBoard
-tensorboard --logdir=/workspace/experiments --port=6006 --bind_all &
+# Start Ollama
+systemctl start ollama
+echo "Ollama service started"
 
-# Initialize model management
-echo "Initializing model management..."
-/workspace/scripts/manage_model.sh sync
+# Start model training service
+systemctl start model_training
+echo "Model training service started"
 
-# Configure Ollama model if not already present
-if ! ollama list | grep -q "fuse-ai"; then
-    echo "Setting up FuseAI model in Ollama..."
-    ollama pull FuseAI/FuseO1-DeepSeekR1-Qwen2.5-Coder-32B-Preview
-    if [ -f "/workspace/configs/ollama_model.yaml" ]; then
-        ollama create fuse-ai -f /workspace/configs/ollama_model.yaml
+# Start model server
+systemctl start model_server
+echo "Model server started"
+
+# Download and prepare base model if not exists
+if [ ! -f "${NETWORK_ROOT}/models/base/Cline_FuseO1-DeepSeekR1-Qwen2.5-Coder-32B-Preview" ]; then
+    echo "Downloading base model..."
+    ollama pull nuibang/Cline_FuseO1-DeepSeekR1-Qwen2.5-Coder-32B-Preview
+fi
+
+# Prepare dataset if not exists
+if [ ! -f "${NETWORK_ROOT}/datasets/terrads/TerraDS.sqlite" ]; then
+    echo "Preparing TerraDS dataset..."
+    /workspace/scripts/prepare_dataset.sh
+fi
+
+# Initialize experiment tracking
+echo "Initializing experiment tracking..."
+python3 -c "
+import mlflow
+mlflow.set_tracking_uri('http://localhost:5000')
+mlflow.create_experiment('terraform_unified_optimization')
+"
+
+# Health check
+echo "Performing health check..."
+services=("mlflow" "kubeflow" "langfuse" "jupyterhub" "ollama" "model_training" "model_server")
+for service in "${services[@]}"; do
+    if systemctl is-active --quiet $service; then
+        echo "$service: Running"
     else
-        echo "Warning: ollama_model.yaml not found, using default model configuration"
-        ollama create fuse-ai -f - <<EOF
-FROM FuseAI/FuseO1-DeepSeekR1-Qwen2.5-Coder-32B-Preview
-
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-PARAMETER top_k 40
-PARAMETER repeat_penalty 1.1
-PARAMETER num_ctx 8192
-PARAMETER num_thread 8
-EOF
+        echo "$service: Failed to start"
+        systemctl status $service
     fi
-fi
+done
 
-# Set up environment variables for data pipeline
-if [ -f "/workspace/configs/api_keys.env" ]; then
-    echo "Loading API keys from config file..."
-    source /workspace/configs/api_keys.env
-else
-    echo "Warning: API keys config file not found. Data pipeline features may be limited."
-fi
-
-# Print environment information
-echo "Environment initialized successfully!"
-echo "Available services:"
-echo "- MLflow: http://localhost:5000"
-echo "- KubeFlow: http://localhost:8000"
-echo "- Jupyter Lab: http://localhost:8888"
-echo "- Ollama: http://localhost:11434"
-echo "- LangFuse: http://localhost:3000"
-echo "- TensorBoard: http://localhost:6006"
-echo ""
-echo "Data Pipeline: /workspace/data_pipeline"
-echo "Model Training: /workspace/model_training"
-echo "Datasets: /workspace/datasets"
-echo "Models: /workspace/models"
-if [ ! -z "${NETWORK_STORAGE_ROOT}" ]; then
-    echo "Network Storage: ${NETWORK_STORAGE_ROOT}"
-fi
-if [ ! -z "${EXTERNAL_HOST}" ]; then
-    echo "External Ollama Access: http://${EXTERNAL_HOST}:${EXTERNAL_PORT}"
-fi
-echo ""
-echo "Model Management Commands:"
-echo "- Sync models: /workspace/scripts/manage_model.sh sync"
-echo "- Update model: /workspace/scripts/manage_model.sh update"
-echo "- Show status: /workspace/scripts/manage_model.sh status"
-
-# Keep the container running with proper signal handling
-exec /lib/systemd/systemd --system
+echo "Environment setup complete. Access points:"
+echo "- MLflow UI: http://localhost:5000"
+echo "- KubeFlow UI: http://localhost:8000"
+echo "- LangFuse UI: http://localhost:3000"
+echo "- JupyterHub: http://localhost:8888"
+echo "- Unified notebook: /workspace/notebooks/terraform_optimization_unified.ipynb"

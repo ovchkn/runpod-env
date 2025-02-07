@@ -1,0 +1,35 @@
+[Unit]
+Description=KubeFlow ML Platform
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/services/kubeflow
+Environment=KF_PIPELINES_ENDPOINT=http://localhost:8000
+Environment=KUBEFLOW_USERNAME=admin
+Environment=KUBEFLOW_PASSWORD=admin
+
+# Start KubeFlow components
+ExecStartPre=/usr/local/bin/kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=2.0.5"
+ExecStartPre=/usr/local/bin/kubectl wait --for condition=established --timeout=60s crd/applications.app.k8s.io
+ExecStartPre=/usr/local/bin/kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform-agnostic-pns?ref=2.0.5"
+
+ExecStart=/usr/local/bin/kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8000:80
+
+# Ensure clean shutdown
+ExecStop=/usr/local/bin/kubectl delete -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform-agnostic-pns?ref=2.0.5"
+ExecStop=/usr/local/bin/kubectl delete -k "github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=2.0.5"
+
+Restart=always
+RestartSec=10
+
+# Resource limits
+CPUAccounting=true
+CPUQuota=200%
+MemoryAccounting=true
+MemoryMax=4G
+
+[Install]
+WantedBy=multi-user.target

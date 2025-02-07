@@ -1,0 +1,20 @@
+[Unit]
+Description=Model Serving and Update Service
+After=network.target ollama.service mlflow.service
+Requires=ollama.service mlflow.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/model_training
+Environment=PYTHONPATH=/workspace
+ExecStart=/opt/conda/envs/mlops/bin/python model_server.py
+Restart=always
+RestartSec=10
+
+# Give time for model updates
+TimeoutStartSec=300
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

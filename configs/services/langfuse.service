@@ -1,0 +1,25 @@
+[Unit]
+Description=LangFuse Observability Service
+After=network.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/services/langfuse
+Environment=POSTGRES_USER=langfuse
+Environment=POSTGRES_PASSWORD=langfuse
+Environment=POSTGRES_DB=langfuse
+Environment=NEXTAUTH_SECRET=your-nextauth-secret
+Environment=SALT=your-salt
+Environment=LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+
+ExecStartPre=/usr/bin/docker-compose down
+ExecStart=/usr/bin/docker-compose up
+ExecStop=/usr/bin/docker-compose down
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -2,7 +2,6 @@
 configs/api_keys.env
 .env
 *.env
-!api_keys.env.template
 
 # Network storage symlinks
 /datasets

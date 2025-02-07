@@ -1,0 +1,16 @@
+[Unit]
+Description=Continuous Model Fine-tuning Service
+After=network.target mlflow.service
+Requires=mlflow.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/model_training
+Environment=PYTHONPATH=/workspace
+ExecStart=/opt/conda/envs/mlops/bin/python continuous_finetuning.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

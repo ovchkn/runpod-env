@@ -1,238 +1,156 @@
-# RunPod AI/ML Development Environment
+# RunPod ML Environment for Terraform Optimization
 
-A comprehensive ML/AI development environment with sysbox-runc support, designed for running Ollama models, conducting ML experiments, and fine-tuning models. This environment integrates MLflow, KubeFlow, JupyterHub, and various ML tools in a containerized setup.
+A comprehensive ML environment for optimizing Terraform configurations using advanced language models and MLOps tools.
+
+## Architecture
+
+```
+[MLflow] ←→ [KubeFlow] ←→ [LangFuse]
+   ↑            ↑             ↑
+   └────────────┴─────────────┘
+          ↓             ↓
+[Model Training] ←→ [Inference]
+```
 
 ## Features
 
-### Core Infrastructure
-- **Sysbox Runtime Integration**: Secure nested container support for advanced containerization
-- **Systemd Integration**: Proper service management and process control
-- **Docker Support**: Full Docker support with sysbox-runc runtime
+- **Multi-Target Optimization**
+  - Cost optimization with performance constraints
+  - Security improvements with compliance metrics
+  - Performance optimization with availability guarantees
 
-### ML/AI Framework Support
-- PyTorch with CUDA support
-- PyTorch Lightning
-- Transformers & HuggingFace
-- LangChain & LangFuse
-- MLflow & KubeFlow
-- Sentence Transformers
-- Scikit-learn & NumPy
+- **Advanced ML Pipeline**
+  - Distributed training on A40 GPU
+  - Multi-task learning
+  - Continuous fine-tuning
+  - Automated PR generation
 
-### Development Tools
-- JupyterHub with Lab interface
-- TensorBoard
-- Git integration
-- VSCode compatibility
+- **Comprehensive Monitoring**
+  - MLflow experiment tracking
+  - KubeFlow pipeline orchestration
+  - LangFuse inference monitoring
 
-### Model Management
-- Ollama integration
-- HuggingFace Hub support
-- Model versioning
-- Experiment tracking
-
-### Data Pipeline
-- GitHub repository scraping
-- Tavily search integration
-- Custom dataset generation
-- Embedding creation
-- MLflow tracking
-
-### Model Training
-- Fine-tuning pipeline
-- Experiment tracking
-- Model checkpointing
-- Performance monitoring
+- **Network Storage Integration**
+  - Persistent model storage
+  - Dataset management
+  - Experiment tracking
+  - Checkpoint management
 
 ## Prerequisites
 
-- Docker with sysbox-runc support
-- NVIDIA GPU with appropriate drivers
-- At least 32GB RAM recommended
-- 100GB+ storage space
-- API keys for data collection (GitHub, Tavily)
+- RunPod.io account with A40 GPU access
+- Network storage volume mounted at `/network`
+- Git repository access
 
 ## Quick Start
 
-1. Build the container:
+1. Clone the repository:
 ```bash
-docker build -t ghcr.io/ovchkn/runpod:1.0 .
+git clone https://github.com/yourusername/runpod-env.git
+cd runpod-env
 ```
 
-2. Set up API keys:
+2. Configure environment:
 ```bash
-cd /workspace/configs
-cp api_keys.env.template api_keys.env
-# Edit api_keys.env with your API keys
+cp configs/api_keys.env.template configs/api_keys.env
+# Edit api_keys.env with your credentials
 ```
 
-3. Run the container:
+3. Start the environment:
 ```bash
-docker run -d \
-  --runtime=sysbox-runc \
-  --name runpod-env \
-  -p 11434:11434 \
-  -p 5000:5000 \
-  -p 8000:8000 \
-  -p 8888:8888 \
-  -p 3000:3000 \
-  -p 6006:6006 \
-  --gpus all \
-  ghcr.io/ovchkn/runpod:1.0
+./scripts/start.sh
 ```
 
-4. Access services:
-- JupyterHub: http://localhost:8888
-- MLflow: http://localhost:5000
-- KubeFlow: http://localhost:8000
-- Ollama: http://localhost:11434
-- LangFuse: http://localhost:3000
-- TensorBoard: http://localhost:6006
-
-## Environment Structure
-
-```
-/workspace/
-├── data_pipeline/       # Data collection and processing
-│   ├── scraper.py      # GitHub and Tavily data collection
-│   ├── raw_data/       # Raw collected data
-│   └── processed_data/ # Processed datasets
-├── model_training/     # Model training and fine-tuning
-│   ├── fine_tuning.py # Fine-tuning pipeline
-│   ├── checkpoints/   # Model checkpoints
-│   └── artifacts/     # Training artifacts
-├── notebooks/         # Jupyter notebooks
-├── models/           # Model files and checkpoints
-├── datasets/         # Training and test datasets
-├── pipelines/        # ML pipelines and workflows
-├── experiments/      # Experiment tracking
-├── configs/         # Configuration files
-└── logs/           # Service and application logs
-```
-
-## Data Pipeline Usage
-
-1. Configure API keys:
-```bash
-cd /workspace/configs
-cp api_keys.env.template api_keys.env
-# Edit api_keys.env with your keys
-```
-
-2. Run data collection:
-```bash
-python /workspace/data_pipeline/scraper.py
-```
-
-The pipeline will:
-- Search GitHub for relevant repositories
-- Extract pull request data
-- Perform Tavily searches
-- Generate embeddings
-- Save processed datasets
-
-## Model Training
-
-1. Prepare your dataset:
-```bash
-# Datasets should be in /workspace/datasets/training
-```
-
-2. Run fine-tuning:
-```bash
-python /workspace/model_training/fine_tuning.py
-```
-
-Training progress can be monitored via:
+4. Access interfaces:
 - MLflow UI: http://localhost:5000
-- TensorBoard: http://localhost:6006
+- KubeFlow UI: http://localhost:8000
+- LangFuse UI: http://localhost:3000
+- JupyterHub: http://localhost:8888
 
-## Service Management
+## Directory Structure
 
-The environment uses systemd for service management:
+```
+/network/mlops/
+├── datasets/          # Training datasets
+├── models/           # Model files
+│   ├── base/         # Base models
+│   ├── fine_tuned/   # Fine-tuned models
+│   └── checkpoints/  # Training checkpoints
+├── experiments/      # Experiment results
+│   ├── cost/        # Cost optimization
+│   ├── security/    # Security optimization
+│   └── performance/ # Performance optimization
+└── logs/            # Service logs
 
+/workspace/
+├── configs/         # Service configurations
+├── notebooks/       # Jupyter notebooks
+├── scripts/        # Utility scripts
+└── model_training/ # Training code
+```
+
+## Components
+
+1. **MLflow**
+   - Experiment tracking
+   - Model versioning
+   - Parameter optimization
+   - Metric visualization
+
+2. **KubeFlow**
+   - Pipeline orchestration
+   - Resource management
+   - Distributed training
+   - Model serving
+
+3. **LangFuse**
+   - Inference monitoring
+   - Cost tracking
+   - Quality metrics
+   - Performance analysis
+
+4. **Base Model**
+   - nuibang/Cline_FuseO1-DeepSeekR1-Qwen2.5-Coder-32B-Preview
+   - Optimized for code generation
+   - Fine-tuned on Terraform configurations
+
+## Usage
+
+1. **Start Environment**
 ```bash
-# Start all services
-/workspace/scripts/start.sh
-
-# Individual service control
-systemctl status mlflow
-systemctl status ollama
-systemctl status jupyterhub
+./scripts/start.sh
 ```
 
-## Ollama Model Management
+2. **Access Unified Notebook**
+- Open JupyterHub: http://localhost:8888
+- Navigate to: `notebooks/terraform_optimization_unified.ipynb`
 
-```bash
-# List available models
-ollama list
+3. **Monitor Experiments**
+- Track experiments in MLflow
+- Monitor pipelines in KubeFlow
+- Analyze inference in LangFuse
 
-# Pull additional models
-ollama pull <model-name>
+4. **View Results**
+- Generated PRs in GitHub
+- Optimization metrics in MLflow
+- Cost analysis in LangFuse
 
-# Run model
-ollama run fuse-ai
-```
+## Development
 
-## MLflow Experiment Tracking
+1. **Code Organization**
+- Use network storage for persistence
+- Keep configurations in version control
+- Follow MLOps best practices
 
-```python
-import mlflow
+2. **Adding Features**
+- Create new experiment types in `notebooks/`
+- Add monitoring metrics in `model_training/`
+- Update pipeline components in KubeFlow
 
-# Start experiment
-mlflow.set_experiment("my-experiment")
-with mlflow.start_run():
-    # Your training code here
-    mlflow.log_param("param1", value1)
-    mlflow.log_metric("metric1", value1)
-```
-
-## Development Workflow
-
-1. Start JupyterLab and create a new notebook
-2. Use the pre-configured `mlops` conda environment
-3. Import required libraries (all major ML libraries are pre-installed)
-4. Connect to MLflow for experiment tracking
-5. Use Ollama for model inference
-6. Monitor training with TensorBoard
-
-## Customization
-
-- Edit `/workspace/configs/jupyterhub_config.py` for JupyterHub settings
-- Modify service configurations in `/workspace/configs/services/`
-- Add custom conda packages to the `mlops` environment
-- Configure model parameters in `configs/ollama_model.yaml`
-
-## Troubleshooting
-
-1. Service Issues:
-```bash
-# Check service status
-systemctl status <service-name>
-
-# View service logs
-journalctl -u <service-name>
-```
-
-2. Container Runtime:
-```bash
-# Check sysbox-runc status
-systemctl status sysbox
-```
-
-3. GPU Access:
-```bash
-# Verify GPU visibility
-nvidia-smi
-```
-
-4. Data Pipeline Issues:
-```bash
-# Check API keys
-cat /workspace/configs/api_keys.env
-
-# Check logs
-tail -f /workspace/logs/data_pipeline.log
-```
+3. **Maintenance**
+- Regular model updates via `manage_model.sh`
+- Log rotation and cleanup
+- Metric aggregation and analysis
 
 ## Contributing
 
@@ -243,8 +161,3 @@ tail -f /workspace/logs/data_pipeline.log
 ## License
 
 MIT License - see LICENSE file for details
-
-## Support
-
-- GitHub Issues: [Report bugs or suggest features](https://github.com/ovchkn/runpod-env/issues)
-- Documentation: See `/docs` directory for detailed guides
