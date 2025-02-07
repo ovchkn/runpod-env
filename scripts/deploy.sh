@@ -8,7 +8,7 @@ VERSION="1.0"
 FULL_IMAGE_NAME="${REGISTRY}/${OWNER}/${IMAGE_NAME}:${VERSION}"
 
 # Source API keys environment variables
-source ~/runpod-env/configs/services/api_keys.env
+source /home/ubuntu/src/runpod-env/configs/api_keys.env
 
 # Ensure we're logged into GitHub Container Registry
 if ! docker info | grep -q "ghcr.io"; then
